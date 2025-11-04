@@ -96,3 +96,56 @@ exports.loginDriver = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get logged-in driver profile
+exports.getDriverProfile = async (req, res) => {
+  try {
+    res.status(200).json({
+      message: 'Driver profile fetched successfully',
+      driver: req.user
+    });
+  } catch (error) {
+    console.error('Error fetching driver profile:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update driver profile
+exports.updateDriverProfile = async (req, res) => {
+  try {
+    const { name, phone, password, licenseNumber, vehicleType, vehicleNumber } = req.body;
+    const driver = await Driver.findById(req.user._id);
+
+    if (!driver) return res.status(404).json({ message: 'Driver not found' });
+
+    if (name) driver.name = name;
+    if (phone) driver.phone = phone;
+    if (licenseNumber) driver.licenseNumber = licenseNumber;
+    if (vehicleType) driver.vehicleType = vehicleType;
+    if (vehicleNumber) driver.vehicleNumber = vehicleNumber;
+
+    if (password) {
+      const bcrypt = require('bcryptjs');
+      driver.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedDriver = await driver.save();
+
+    res.status(200).json({
+      message: 'Driver profile updated successfully',
+      driver: {
+        _id: updatedDriver._id,
+        name: updatedDriver.name,
+        email: updatedDriver.email,
+        phone: updatedDriver.phone,
+        licenseNumber: updatedDriver.licenseNumber,
+        vehicleType: updatedDriver.vehicleType,
+        vehicleNumber: updatedDriver.vehicleNumber,
+        role: updatedDriver.role,
+      }
+    });
+  } catch (error) {
+    console.error('Error updating driver profile:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

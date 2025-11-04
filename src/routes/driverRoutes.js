@@ -1,7 +1,9 @@
 const express = require('express');
 const {
   registerDriver,
-  loginDriver
+  loginDriver,
+  getDriverProfile,
+  updateDriverProfile
 } = require('../controllers/driverController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -11,12 +13,8 @@ const router = express.Router();
 router.post('/register', registerDriver);
 router.post('/login', loginDriver);
 
-// Protected route (JWT required)
-router.get('/profile', protect, (req, res) => {
-  res.json({
-    message: 'Protected route accessed successfully (driver)',
-    driver: req.user
-  });
-});
+// Protected routes
+router.get('/profile', protect, getDriverProfile);
+router.put('/profile/update', protect, updateDriverProfile);
 
 module.exports = router;
