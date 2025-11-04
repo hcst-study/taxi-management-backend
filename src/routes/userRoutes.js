@@ -1,5 +1,11 @@
 const express = require('express');
-const { registerUser, loginUser } = require('../controllers/userController');
+const {
+  registerUser,
+  loginUser,
+  getUserProfile,
+  updateUserProfile,
+  updateWallet
+} = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -8,12 +14,9 @@ const router = express.Router();
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 
-// Protected route
-router.get('/profile', protect, (req, res) => {
-  res.json({
-    message: 'Protected route accessed successfully',
-    user: req.user
-  });
-});
+// Protected routes
+router.get('/profile', protect, getUserProfile);
+router.put('/profile/update', protect, updateUserProfile);
+router.put('/wallet', protect, updateWallet);
 
 module.exports = router;

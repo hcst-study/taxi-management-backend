@@ -90,3 +90,77 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get logged-in user profile
+exports.getUserProfile = async (req, res) => {
+  try {
+    res.status(200).json({
+      message: 'User profile fetched successfully',
+      user: req.user
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update user profile
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const { name, phone, password } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+
+    if (password) {
+      const bcrypt = require('bcryptjs');
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      user: {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        wallet: updatedUser.wallet
+      }
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update wallet balance (add or deduct)
+exports.updateWallet = async (req, res) => {
+  try {
+    const { amount } = req.body; // positive to add, negative to deduct
+    const user = await User.findById(req.user._id);
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.wallet += Number(amount);
+
+    if (user.wallet < 0) {
+      return res.status(400).json({ message: 'Insufficient wallet balance' });
+    }
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      message: `Wallet updated successfully (${amount >= 0 ? 'added' : 'deducted'})`,
+      wallet: updatedUser.wallet
+    });
+  } catch (error) {
+    console.error('Error updating wallet:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
