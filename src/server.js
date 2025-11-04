@@ -15,6 +15,10 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Routes
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/drivers', require('./routes/driverRoutes'));
+
 // Health endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
