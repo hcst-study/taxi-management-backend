@@ -52,26 +52,34 @@ exports.registerDriver = async (req, res) => {
   }
 };
 
-// Login driver
+// Login driver with JWT
 exports.loginDriver = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find driver by email
+    // Find driver
     const driver = await Driver.findOne({ email });
     if (!driver) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Compare passwords
+    // Compare password
     const isMatch = await bcrypt.compare(password, driver.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Successful login
+    // Generate JWT token
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { id: driver._id, role: driver.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
     res.status(200).json({
       message: 'Login successful',
+      token,
       driver: {
         _id: driver._id,
         name: driver.name,
@@ -80,8 +88,8 @@ exports.loginDriver = async (req, res) => {
         licenseNumber: driver.licenseNumber,
         vehicleType: driver.vehicleType,
         vehicleNumber: driver.vehicleNumber,
-        role: driver.role
-      }
+        role: driver.role,
+      },
     });
   } catch (error) {
     console.error('Error logging in driver:', error);

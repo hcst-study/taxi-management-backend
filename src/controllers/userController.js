@@ -47,26 +47,35 @@ exports.registerUser = async (req, res) => {
   }
 };
 
-// Login user
+// Login user with JWT
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Compare password
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    // Generate JWT token
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
     // Successful login
     res.status(200).json({
       message: 'Login successful',
+      token,
       user: {
         _id: user._id,
         name: user.name,
