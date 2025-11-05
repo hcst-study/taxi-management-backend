@@ -4,6 +4,7 @@ const {
   getAvailableRides,
   acceptRide,
   completeRide,
+  cancelRide,
   getMyRides
 } = require('../controllers/rideController');
 const { protect, requireUser, requireDriver } = require('../middleware/authMiddleware');
@@ -22,7 +23,10 @@ router.put('/accept/:rideId', protect, requireDriver, acceptRide);
 // Driver completes a ride
 router.put('/complete/:rideId', protect, requireDriver, completeRide);
 
-// Get all rides for current user/driver (both roles allowed)
+// Cancel ride (user or driver)
+router.put('/cancel/:rideId', protect, cancelRide);
+
+// Get all rides for current user/driver
 router.get('/my-rides', protect, getMyRides);
 
 module.exports = router;

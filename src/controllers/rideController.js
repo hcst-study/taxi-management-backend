@@ -2,16 +2,22 @@ const Ride = require('../models/Ride');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 
-// User requests a ride
+// 🟢 User requests a ride
 exports.requestRide = async (req, res) => {
   try {
     const { pickupLocation, dropoffLocation, fare } = req.body;
     const user = req.user;
 
+    // Check wallet balance
     if (user.wallet < fare) {
       return res.status(400).json({ message: 'Insufficient wallet balance' });
     }
 
+    // Deduct fare immediately (hold the fare)
+    user.wallet -= fare;
+    await user.save();
+
+    // Create ride
     const ride = await Ride.create({
       user: user._id,
       pickupLocation,
@@ -21,8 +27,9 @@ exports.requestRide = async (req, res) => {
     });
 
     res.status(201).json({
-      message: 'Ride requested successfully',
+      message: 'Ride requested successfully (fare deducted)',
       ride,
+      userWallet: user.wallet,
     });
   } catch (error) {
     console.error('Error requesting ride:', error);
@@ -30,7 +37,7 @@ exports.requestRide = async (req, res) => {
   }
 };
 
-// Driver views all available ride requests
+// 🟡 Driver views all available ride requests
 exports.getAvailableRides = async (req, res) => {
   try {
     const rides = await Ride.find({ status: 'requested' }).populate('user', 'name phone');
@@ -41,7 +48,7 @@ exports.getAvailableRides = async (req, res) => {
   }
 };
 
-// Driver accepts a ride
+// 🟠 Driver accepts a ride
 exports.acceptRide = async (req, res) => {
   try {
     const { rideId } = req.params;
@@ -65,7 +72,7 @@ exports.acceptRide = async (req, res) => {
   }
 };
 
-// Complete a ride (driver only)
+// 🟣 Complete a ride (driver only)
 exports.completeRide = async (req, res) => {
   try {
     const { rideId } = req.params;
@@ -74,17 +81,9 @@ exports.completeRide = async (req, res) => {
     if (!ride) return res.status(404).json({ message: 'Ride not found' });
     if (ride.status !== 'accepted') return res.status(400).json({ message: 'Ride is not in progress' });
 
-    const user = await User.findById(ride.user._id);
     const driver = await Driver.findById(ride.driver._id);
 
-    // Deduct fare from user
-    if (user.wallet < ride.fare) {
-      return res.status(400).json({ message: 'User has insufficient balance' });
-    }
-    user.wallet -= ride.fare;
-    await user.save();
-
-    // Add fare to driver
+    // Add fare to driver wallet
     driver.wallet += ride.fare;
     await driver.save();
 
@@ -95,8 +94,8 @@ exports.completeRide = async (req, res) => {
     res.status(200).json({
       message: 'Ride completed successfully',
       ride,
-      userWallet: user.wallet,
-      driverWallet: driver.wallet
+      userWallet: ride.user.wallet,
+      driverWallet: driver.wallet,
     });
   } catch (error) {
     console.error('Error completing ride:', error);
@@ -104,7 +103,60 @@ exports.completeRide = async (req, res) => {
   }
 };
 
-// Fetch all rides for current user or driver
+// 🔴 Cancel a ride (user or driver)
+exports.cancelRide = async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const account = req.user;
+
+    const ride = await Ride.findById(rideId).populate('user').populate('driver');
+
+    if (!ride) return res.status(404).json({ message: 'Ride not found' });
+    if (ride.status === 'completed') return res.status(400).json({ message: 'Cannot cancel a completed ride' });
+    if (ride.status === 'cancelled') return res.status(400).json({ message: 'Ride already cancelled' });
+
+    // --- Case 1: User cancels before driver accepts ---
+    if (account.role === 'user' && ride.status === 'requested') {
+      ride.status = 'cancelled';
+      await ride.save();
+
+      // Refund full fare
+      const user = await User.findById(ride.user._id);
+      user.wallet += ride.fare;
+      await user.save();
+
+      return res.status(200).json({
+        message: 'Ride cancelled successfully (user)',
+        refund: ride.fare,
+        userWallet: user.wallet,
+      });
+    }
+
+    // --- Case 2: Driver cancels after accepting ---
+    if (account.role === 'driver' && ride.status === 'accepted') {
+      ride.status = 'cancelled';
+      await ride.save();
+
+      // Refund full fare to user
+      const user = await User.findById(ride.user._id);
+      user.wallet += ride.fare;
+      await user.save();
+
+      return res.status(200).json({
+        message: 'Ride cancelled successfully (driver)',
+        refund: ride.fare,
+        userWallet: user.wallet,
+      });
+    }
+
+    return res.status(400).json({ message: 'Cancellation not allowed in current ride status' });
+  } catch (error) {
+    console.error('Error cancelling ride:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🧾 Fetch all rides for current user or driver
 exports.getMyRides = async (req, res) => {
   try {
     const user = req.user;
