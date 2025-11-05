@@ -26,8 +26,16 @@ const rideSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['requested', 'accepted', 'completed', 'cancelled'],
+      enum: ['requested', 'accepted', 'on-trip', 'completed', 'cancelled'], // ✅ added 'on-trip'
       default: 'requested',
+    },
+    startTime: {
+      type: Date, // ✅ new field — when driver starts the ride
+      default: null,
+    },
+    endTime: {
+      type: Date, // ✅ new field — when ride is completed
+      default: null,
     },
   },
   { timestamps: true }

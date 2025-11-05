@@ -72,6 +72,38 @@ exports.acceptRide = async (req, res) => {
   }
 };
 
+// 🟡 Start a ride (driver begins trip)
+exports.startRide = async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const driver = req.user;
+
+    const ride = await Ride.findById(rideId);
+    if (!ride) return res.status(404).json({ message: 'Ride not found' });
+    if (ride.status !== 'accepted') {
+      return res.status(400).json({ message: 'Ride is not ready to start' });
+    }
+
+    // Only assigned driver can start this ride
+    if (ride.driver.toString() !== driver._id.toString()) {
+      return res.status(403).json({ message: 'Access denied: not your ride' });
+    }
+
+    ride.status = 'on-trip';
+    ride.startTime = new Date();
+    await ride.save();
+
+    res.status(200).json({
+      message: 'Ride started successfully',
+      ride,
+    });
+  } catch (error) {
+    console.error('Error starting ride:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
 // 🟣 Complete a ride (driver only)
 exports.completeRide = async (req, res) => {
   try {
@@ -79,22 +111,24 @@ exports.completeRide = async (req, res) => {
     const ride = await Ride.findById(rideId).populate('user').populate('driver');
 
     if (!ride) return res.status(404).json({ message: 'Ride not found' });
-    if (ride.status !== 'accepted') return res.status(400).json({ message: 'Ride is not in progress' });
+    if (ride.status !== 'on-trip') {
+      return res.status(400).json({ message: 'Ride is not in progress' });
+    }
 
     const driver = await Driver.findById(ride.driver._id);
 
-    // Add fare to driver wallet
+    // Add fare to driver's wallet
     driver.wallet += ride.fare;
     await driver.save();
 
-    // Update ride status
+    // Update ride status and end time
     ride.status = 'completed';
+    ride.endTime = new Date();
     await ride.save();
 
     res.status(200).json({
       message: 'Ride completed successfully',
       ride,
-      userWallet: ride.user.wallet,
       driverWallet: driver.wallet,
     });
   } catch (error) {
