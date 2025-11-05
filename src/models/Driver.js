@@ -43,6 +43,10 @@ const driverSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    wallet: {
+      type: Number,
+      default: 0, // 💰 this fixes the null issue
+    },
     role: {
       type: String,
       enum: ['driver'],

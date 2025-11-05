@@ -149,3 +149,29 @@ exports.updateDriverProfile = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Update driver wallet balance (add or deduct)
+exports.updateDriverWallet = async (req, res) => {
+  try {
+    const { amount } = req.body; // positive to add, negative to deduct
+    const driver = await Driver.findById(req.user._id);
+
+    if (!driver) return res.status(404).json({ message: 'Driver not found' });
+
+    driver.wallet += Number(amount);
+
+    if (driver.wallet < 0) {
+      return res.status(400).json({ message: 'Insufficient wallet balance' });
+    }
+
+    const updatedDriver = await driver.save();
+
+    res.status(200).json({
+      message: `Wallet updated successfully (${amount >= 0 ? 'added' : 'deducted'})`,
+      wallet: updatedDriver.wallet
+    });
+  } catch (error) {
+    console.error('Error updating driver wallet:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

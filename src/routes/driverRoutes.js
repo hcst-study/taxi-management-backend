@@ -3,7 +3,8 @@ const {
   registerDriver,
   loginDriver,
   getDriverProfile,
-  updateDriverProfile
+  updateDriverProfile,
+  updateDriverWallet
 } = require('../controllers/driverController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -16,5 +17,6 @@ router.post('/login', loginDriver);
 // Protected routes
 router.get('/profile', protect, getDriverProfile);
 router.put('/profile/update', protect, updateDriverProfile);
+router.put('/wallet', protect, updateDriverWallet);
 
 module.exports = router;
