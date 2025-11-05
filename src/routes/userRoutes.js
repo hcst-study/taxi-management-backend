@@ -6,7 +6,7 @@ const {
   updateUserProfile,
   updateWallet
 } = require('../controllers/userController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requireUser } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -14,9 +14,9 @@ const router = express.Router();
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 
-// Protected routes
-router.get('/profile', protect, getUserProfile);
-router.put('/profile/update', protect, updateUserProfile);
-router.put('/wallet', protect, updateWallet);
+// Protected user-only routes
+router.get('/profile', protect, requireUser, getUserProfile);
+router.put('/profile/update', protect, requireUser, updateUserProfile);
+router.put('/wallet', protect, requireUser, updateWallet);
 
 module.exports = router;

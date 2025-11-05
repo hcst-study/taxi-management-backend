@@ -6,23 +6,23 @@ const {
   completeRide,
   getMyRides
 } = require('../controllers/rideController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requireUser, requireDriver } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 // User requests a ride
-router.post('/request', protect, requestRide);
+router.post('/request', protect, requireUser, requestRide);
 
-// Driver views all available rides
-router.get('/available', protect, getAvailableRides);
+// Driver views available rides
+router.get('/available', protect, requireDriver, getAvailableRides);
 
 // Driver accepts a ride
-router.put('/accept/:rideId', protect, acceptRide);
+router.put('/accept/:rideId', protect, requireDriver, acceptRide);
 
 // Driver completes a ride
-router.put('/complete/:rideId', protect, completeRide);
+router.put('/complete/:rideId', protect, requireDriver, completeRide);
 
-// Get all rides for current user/driver
+// Get all rides for current user/driver (both roles allowed)
 router.get('/my-rides', protect, getMyRides);
 
 module.exports = router;

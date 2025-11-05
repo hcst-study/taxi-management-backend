@@ -6,7 +6,7 @@ const {
   updateDriverProfile,
   updateDriverWallet
 } = require('../controllers/driverController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requireDriver } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -14,9 +14,9 @@ const router = express.Router();
 router.post('/register', registerDriver);
 router.post('/login', loginDriver);
 
-// Protected routes
-router.get('/profile', protect, getDriverProfile);
-router.put('/profile/update', protect, updateDriverProfile);
-router.put('/wallet', protect, updateDriverWallet);
+// Protected driver-only routes
+router.get('/profile', protect, requireDriver, getDriverProfile);
+router.put('/profile/update', protect, requireDriver, updateDriverProfile);
+router.put('/wallet', protect, requireDriver, updateDriverWallet);
 
 module.exports = router;
