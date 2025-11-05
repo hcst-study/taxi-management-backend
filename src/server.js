@@ -18,6 +18,7 @@ app.use(morgan('dev'));
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/drivers', require('./routes/driverRoutes'));
+app.use('/api/rides', require('./routes/rideRoutes')); // ✅ added line for ride APIs
 
 // Health endpoint
 app.get('/health', (req, res) => {
