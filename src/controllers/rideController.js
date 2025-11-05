@@ -137,53 +137,84 @@ exports.completeRide = async (req, res) => {
   }
 };
 
-// 🔴 Cancel a ride (user or driver)
+// 🚫 Cancel a ride (user or driver)
 exports.cancelRide = async (req, res) => {
   try {
     const { rideId } = req.params;
-    const account = req.user;
+    const user = req.user;
 
     const ride = await Ride.findById(rideId).populate('user').populate('driver');
-
     if (!ride) return res.status(404).json({ message: 'Ride not found' });
-    if (ride.status === 'completed') return res.status(400).json({ message: 'Cannot cancel a completed ride' });
-    if (ride.status === 'cancelled') return res.status(400).json({ message: 'Ride already cancelled' });
 
-    // --- Case 1: User cancels before driver accepts ---
-    if (account.role === 'user' && ride.status === 'requested') {
-      ride.status = 'cancelled';
-      await ride.save();
-
-      // Refund full fare
-      const user = await User.findById(ride.user._id);
-      user.wallet += ride.fare;
-      await user.save();
-
-      return res.status(200).json({
-        message: 'Ride cancelled successfully (user)',
-        refund: ride.fare,
-        userWallet: user.wallet,
-      });
+    if (ride.status === 'completed') {
+      return res.status(400).json({ message: 'Cannot cancel a completed ride' });
+    }
+    if (ride.status === 'cancelled') {
+      return res.status(400).json({ message: 'Ride already cancelled' });
     }
 
-    // --- Case 2: Driver cancels after accepting ---
-    if (account.role === 'driver' && ride.status === 'accepted') {
+    let refundAmount = 0;
+    let message = '';
+    let isUser = user.role === 'user';
+    let isDriver = user.role === 'driver';
+
+    // 🧠 Determine refund/penalty rules
+    if (isUser) {
+      if (ride.status === 'requested') {
+        refundAmount = ride.fare; // full refund
+        message = 'Ride cancelled before acceptance — full refund';
+      } else if (ride.status === 'accepted') {
+        refundAmount = ride.fare * 0.8; // 80% refund
+        message = 'Ride cancelled after acceptance — 80% refund applied';
+      } else if (ride.status === 'on-trip') {
+        refundAmount = 0; // no refund
+        message = 'Ride already in progress — no refund';
+      } else {
+        message = 'Invalid ride status';
+      }
+
+      // refund user
+      if (refundAmount > 0) {
+        const userData = await User.findById(ride.user._id);
+        userData.wallet += refundAmount;
+        await userData.save();
+      }
+
       ride.status = 'cancelled';
       await ride.save();
-
-      // Refund full fare to user
-      const user = await User.findById(ride.user._id);
-      user.wallet += ride.fare;
-      await user.save();
-
-      return res.status(200).json({
-        message: 'Ride cancelled successfully (driver)',
-        refund: ride.fare,
-        userWallet: user.wallet,
-      });
     }
 
-    return res.status(400).json({ message: 'Cancellation not allowed in current ride status' });
+    else if (isDriver) {
+      if (ride.status === 'accepted') {
+        refundAmount = ride.fare; // full refund to user
+        message = 'Driver cancelled before trip start — user fully refunded';
+      } else if (ride.status === 'on-trip') {
+        refundAmount = ride.fare; // full refund
+        message = 'Driver cancelled mid-trip — full refund to user, driver flagged';
+      } else {
+        message = 'Invalid driver cancellation timing';
+      }
+
+      // refund user
+      const userData = await User.findById(ride.user._id);
+      if (userData) {
+        userData.wallet += refundAmount;
+        await userData.save();
+      }
+
+      ride.status = 'cancelled';
+      await ride.save();
+    }
+
+    else {
+      return res.status(403).json({ message: 'Access denied: unauthorized role' });
+    }
+
+    res.status(200).json({
+      message,
+      refunded: refundAmount,
+      newStatus: ride.status,
+    });
   } catch (error) {
     console.error('Error cancelling ride:', error);
     res.status(500).json({ error: error.message });
